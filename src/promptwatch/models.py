@@ -37,4 +37,6 @@ class CaseResult:
     case_id: str
     passed: bool
     checks: list[CheckResult]
+    input: str = ""
+    output: str = ""
 

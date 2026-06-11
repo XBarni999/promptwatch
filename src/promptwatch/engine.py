@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from typing import Any
+
 from .models import Answer, CaseResult, Suite
 from .rules import run_checks
 
@@ -22,12 +24,20 @@ class EvaluationReport:
         return asdict(self)
 
 
-def evaluate_suite(suite: Suite, answers: dict[str, Answer]) -> EvaluationReport:
+def evaluate_suite(suite: Suite, answers: dict[str, Answer], judge: Any = None) -> EvaluationReport:
     case_results: list[CaseResult] = []
     for case in suite.cases:
-        checks = run_checks(case.expected, answers.get(case.id))
+        ans = answers.get(case.id)
+        checks = run_checks(case.expected, ans, case_input=case.input, judge=judge)
         passed = all(check.passed for check in checks)
-        case_results.append(CaseResult(case_id=case.id, passed=passed, checks=checks))
+        output_str = ans.output if ans else ""
+        case_results.append(CaseResult(
+            case_id=case.id, 
+            passed=passed, 
+            checks=checks,
+            input=case.input,
+            output=output_str
+        ))
 
     passed_count = sum(1 for result in case_results if result.passed)
     failed_count = len(case_results) - passed_count
