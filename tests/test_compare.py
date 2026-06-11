@@ -37,7 +37,7 @@ def test_compare_cli_command():
         # Verify HTML report was generated
         assert html_path.exists()
         html_content = html_path.read_text(encoding="utf-8")
-        assert "Run Comparison" in html_content
+        assert "PromptWatch Comparison" in html_content
         assert "Hello World" in html_content
         assert "New output" in html_content
         assert "Old output" in html_content

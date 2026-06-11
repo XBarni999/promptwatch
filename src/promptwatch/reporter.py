@@ -4,14 +4,13 @@ import html
 import json
 import difflib
 from pathlib import Path
-from typing import Any
 from .engine import EvaluationReport
 from .models import Answer
 
 def generate_html_report(report: EvaluationReport, output_path: str) -> None:
     pass_rate = (report.passed / report.total * 100) if report.total > 0 else 0
     status_class = "pass" if report.ok else "fail"
-    status_text = "PASSED" if report.ok else "FAILED"
+    status_text = "Passed" if report.ok else "Failed"
     
     cases_html = []
     for case in report.cases:
@@ -44,65 +43,82 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
                 </tbody>
             </table>
         """ if checks_rows else "<p class='no-checks'>No checks were run.</p>"
-
-        # Find if output exists, or errors
-        output_text = ""
-        citations_html = ""
-        metadata_html = ""
         
         cases_html.append(f"""
         <div class="case-card {case_status}" data-case-id="{html.escape(case.case_id)}">
             <div class="case-header" onclick="toggleAccordion(this)">
-                <span class="status-badge {case_status}">{case_badge}</span>
-                <span class="case-title">{html.escape(case.case_id)}</span>
-                <span class="arrow">&#9662;</span>
+                <div class="case-header-left">
+                    <span class="status-indicator {case_status}"></span>
+                    <span class="case-title">{html.escape(case.case_id)}</span>
+                </div>
+                <div class="case-header-right">
+                    <span class="status-pill {case_status}">{case_badge}</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
             </div>
             <div class="case-body">
-                <div class="details-section">
-                    <h4>Prompt Input</h4>
-                    <pre class="input-display">{html.escape(case.input)}</pre>
-                </div>
-                <div class="details-section">
-                    <h4>Model Output</h4>
-                    <pre class="output-display">{html.escape(case.output)}</pre>
-                </div>
-                <div class="details-section">
-                    <h4>Expected Checks Summary</h4>
-                    {checks_table}
+                <div class="case-grid">
+                    <div class="case-grid-left">
+                        <div class="code-container">
+                            <div class="code-header">Prompt Input</div>
+                            <pre class="code-display">{html.escape(case.input)}</pre>
+                        </div>
+                        <div class="code-container">
+                            <div class="code-header">Model Output</div>
+                            <pre class="code-display output-pre">{html.escape(case.output)}</pre>
+                        </div>
+                    </div>
+                    <div class="case-grid-right">
+                        <div class="rules-section">
+                            <div class="rules-header">Validation Checks</div>
+                            {checks_table}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         """)
 
     html_content = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PromptWatch Test Report - {html.escape(report.suite_name)}</title>
+    <title>PromptWatch - {html.escape(report.suite_name)}</title>
     <style>
         :root {{
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
+            --bg-color: #09090b;
+            --card-bg: #18181b;
+            --card-hover-border: #27272a;
+            --text-color: #fafafa;
+            --text-muted: #a1a1aa;
+            --border-color: #27272a;
+            
             --pass-color: #10b981;
             --pass-bg: rgba(16, 185, 129, 0.1);
             --fail-color: #ef4444;
             --fail-bg: rgba(239, 68, 68, 0.1);
-            --primary-color: #6366f1;
-            --primary-hover: #4f46e5;
+            
+            --primary-color: #3f3f46;
+            --primary-hover: #52525b;
+            --accent-color: #ffffff;
+            
+            --code-bg: #09090b;
         }}
         
         [data-theme="light"] {{
-            --bg-color: #f8fafc;
+            --bg-color: #fafafa;
             --card-bg: #ffffff;
-            --text-color: #0f172a;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
+            --card-hover-border: #e4e4e7;
+            --text-color: #09090b;
+            --text-muted: #71717a;
+            --border-color: #e4e4e7;
             --pass-bg: rgba(16, 185, 129, 0.15);
             --fail-bg: rgba(239, 68, 68, 0.15);
+            --code-bg: #f4f4f5;
+            --primary-color: #e4e4e7;
+            --primary-hover: #d4d4d8;
+            --accent-color: #09090b;
         }}
 
         * {{
@@ -112,16 +128,16 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
         }}
 
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.5;
-            padding: 2rem 1rem;
-            transition: background-color 0.3s, color 0.3s;
+            line-height: 1.6;
+            padding: 3rem 1.5rem;
+            transition: background-color 0.2s, color 0.2s;
         }}
 
         .container {{
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
         }}
 
@@ -129,19 +145,31 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 3rem;
             padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
         }}
 
-        .title-section h1 {{
-            font-size: 2rem;
-            font-weight: 700;
+        .logo-section {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }}
-        
-        .title-section p {{
+
+        .logo-title {{
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-color);
+        }}
+
+        .suite-badge {{
+            font-size: 0.75rem;
+            background-color: var(--border-color);
             color: var(--text-muted);
-            margin-top: 0.25rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 500;
         }}
 
         .theme-toggle {{
@@ -149,45 +177,57 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             border: 1px solid var(--border-color);
             color: var(--text-color);
             padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
         }}
 
         .theme-toggle:hover {{
-            background-color: var(--border-color);
+            background-color: var(--card-bg);
         }}
 
-        /* Dashboard widgets */
+        /* Dashboard grid */
         .dashboard {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(4, 1fr);
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            margin-bottom: 3rem;
+            overflow: hidden;
+        }}
+
+        @media (max-width: 768px) {{
+            .dashboard {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
         }}
 
         .widget {{
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            text-align: center;
-            position: relative;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2rem 1.5rem;
+            text-align: left;
+            border-right: 1px solid var(--border-color);
+        }}
+
+        .widget:last-child {{
+            border-right: none;
         }}
 
         .widget h3 {{
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.5rem;
+            font-weight: 600;
         }}
 
         .widget-val {{
-            font-size: 2.25rem;
-            font-weight: 800;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
         }}
 
         .widget-val.pass-text {{
@@ -203,42 +243,45 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }}
 
         .filter-tabs {{
             display: flex;
-            gap: 0.5rem;
+            gap: 0.35rem;
+            background-color: var(--card-bg);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }}
 
         .tab-btn {{
             background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             font-weight: 500;
             transition: all 0.2s;
         }}
 
         .tab-btn:hover {{
-            background-color: var(--border-color);
+            color: var(--text-color);
         }}
 
         .tab-btn.active {{
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }}
 
         .search-bar {{
             flex-grow: 1;
-            max-width: 400px;
-            position: relative;
+            max-width: 350px;
         }}
 
         .search-bar input {{
@@ -246,82 +289,99 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
             transition: all 0.2s;
         }}
 
         .search-bar input:focus {{
             outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            border-color: var(--accent-color);
         }}
 
         /* Case list */
         .case-list {{
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
         }}
 
         .case-card {{
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s;
         }}
 
         .case-card:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        }}
-
-        .case-card.passed {{
-            border-left: 4px solid var(--pass-color);
-        }}
-
-        .case-card.failed {{
-            border-left: 4px solid var(--fail-color);
+            border-color: var(--card-hover-border);
         }}
 
         .case-header {{
             display: flex;
             align-items: center;
-            padding: 1rem 1.5rem;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
             cursor: pointer;
             user-select: none;
         }}
 
-        .status-badge {{
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            margin-right: 1rem;
-            text-transform: uppercase;
+        .case-header-left {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }}
 
-        .status-badge.passed {{
-            background-color: var(--pass-bg);
-            color: var(--pass-color);
+        .case-header-right {{
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }}
 
-        .status-badge.failed {{
-            background-color: var(--fail-bg);
-            color: var(--fail-color);
+        .status-indicator {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }}
+
+        .status-indicator.passed {{
+            background-color: var(--pass-color);
+        }}
+
+        .status-indicator.failed {{
+            background-color: var(--fail-color);
         }}
 
         .case-title {{
             font-weight: 600;
-            font-size: 1.1rem;
-            flex-grow: 1;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+        }}
+
+        .status-pill {{
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            letter-spacing: 0.05em;
+        }}
+
+        .status-pill.passed {{
+            background-color: var(--pass-bg);
+            color: var(--pass-color);
+        }}
+
+        .status-pill.failed {{
+            background-color: var(--fail-bg);
+            color: var(--fail-color);
         }}
 
         .arrow {{
-            font-size: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
             transition: transform 0.2s;
         }}
 
@@ -332,52 +392,101 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
         .case-body {{
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.2s ease-out;
             padding: 0 1.5rem;
-            border-top: 1px solid transparent;
         }}
 
         .case-card.active .case-body {{
-            max-height: 2000px;
-            padding: 1.5rem;
+            max-height: 3000px;
+            padding-bottom: 2rem;
             border-top: 1px solid var(--border-color);
         }}
 
-        .details-section {{
-            margin-bottom: 1.5rem;
+        /* Two-panel Grid Layout */
+        .case-grid {{
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 2rem;
+            margin-top: 1.5rem;
         }}
 
-        .details-section:last-child {{
-            margin-bottom: 0;
+        @media (max-width: 900px) {{
+            .case-grid {{
+                grid-template-columns: 1fr;
+            }}
         }}
 
-        .details-section h4 {{
-            font-size: 0.875rem;
+        .case-grid-left {{
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }}
+
+        .code-container {{
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--code-bg);
+        }}
+
+        .code-header {{
+            font-size: 0.75rem;
             color: var(--text-muted);
             text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+        }}
+
+        .code-display {{
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            font-size: 0.85rem;
+            padding: 1rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: var(--text-color);
+        }}
+
+        .code-display.output-pre {{
+            color: var(--text-color);
+        }}
+
+        .rules-section {{
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }}
+
+        .rules-header {{
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
             letter-spacing: 0.05em;
             margin-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.25rem;
         }}
 
-        /* Table of checks */
+        /* Clean Rules Table */
         .checks-table {{
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
+            font-size: 0.85rem;
         }}
 
         .checks-table th, .checks-table td {{
-            padding: 0.75rem;
+            padding: 0.65rem 0.5rem;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
         }}
 
         .checks-table th {{
-            font-weight: 600;
+            font-weight: 500;
             color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
         }}
 
         .check-pass td.check-status-badge {{
@@ -390,36 +499,21 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             font-weight: 700;
         }}
 
-        .check-message {{
-            font-family: inherit;
-        }}
-
         .no-checks {{
             color: var(--text-muted);
             font-style: italic;
-        }}
-
-        .input-display, .output-display {{
-            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 0.875rem;
-            padding: 1rem;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 0.375rem;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            border: 1px solid var(--border-color);
-            margin-top: 0.25rem;
+            font-size: 0.85rem;
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <div class="title-section">
-                <h1>PromptWatch Test Suite</h1>
-                <p>Suite: <strong>{html.escape(report.suite_name)}</strong></p>
+            <div class="logo-section">
+                <span class="logo-title">PromptWatch</span>
+                <span class="suite-badge">{html.escape(report.suite_name)}</span>
             </div>
-            <button class="theme-toggle" onclick="toggleTheme()">Toggle Light Theme</button>
+            <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
         </header>
 
         <section class="dashboard">
@@ -428,7 +522,7 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
                 <div class="widget-val {status_class}-text">{pass_rate:.1f}%</div>
             </div>
             <div class="widget">
-                <h3>Total Cases</h3>
+                <h3>Total</h3>
                 <div class="widget-val">{report.total}</div>
             </div>
             <div class="widget">
@@ -448,7 +542,7 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
                 <button class="tab-btn" onclick="filterCases('failed', this)">Failed</button>
             </div>
             <div class="search-bar">
-                <input type="text" placeholder="Search case ID..." onkeyup="searchCases(this.value)">
+                <input type="text" placeholder="Search Case ID..." onkeyup="searchCases(this.value)">
             </div>
         </section>
 
@@ -462,8 +556,6 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
             const currentTheme = document.documentElement.getAttribute("data-theme");
             const newTheme = currentTheme === "light" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", newTheme);
-            document.querySelector(".theme-toggle").textContent = 
-                newTheme === "light" ? "Toggle Dark Theme" : "Toggle Light Theme";
         }}
 
         function toggleAccordion(header) {{
@@ -472,11 +564,9 @@ def generate_html_report(report: EvaluationReport, output_path: str) -> None:
         }}
 
         function filterCases(filter, button) {{
-            // Update tabs
             document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
             button.classList.add("active");
 
-            // Filter cards
             document.querySelectorAll(".case-card").forEach(card => {{
                 if (filter === "all") {{
                     card.style.display = "";
@@ -552,11 +642,9 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
                 case_status = "changed"
                 badge_text = "CHANGED"
                 
-                # Generate a side by side line diff using difflib
                 old_lines = old_output.splitlines()
                 new_lines = new_output.splitlines()
                 
-                # Make inline word diffs or simple line diff
                 diff_lines = list(difflib.ndiff(old_lines, new_lines))
                 
                 old_column = []
@@ -605,9 +693,14 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
         cases_diffs.append(f"""
         <div class="case-card {case_status}" data-case-id="{html.escape(case_id)}">
             <div class="case-header" onclick="toggleAccordion(this)">
-                <span class="status-badge {case_status}">{badge_text}</span>
-                <span class="case-title">{html.escape(case_id)}</span>
-                <span class="arrow">&#9662;</span>
+                <div class="case-header-left">
+                    <span class="status-indicator {case_status}"></span>
+                    <span class="case-title">{html.escape(case_id)}</span>
+                </div>
+                <div class="case-header-right">
+                    <span class="status-pill {case_status}">{badge_text}</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
             </div>
             <div class="case-body">
                 {diff_html}
@@ -616,25 +709,27 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
         """)
 
     html_content = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PromptWatch Run Comparison</title>
+    <title>PromptWatch Comparison</title>
     <style>
         :root {{
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-color: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
+            --bg-color: #09090b;
+            --card-bg: #18181b;
+            --card-hover-border: #27272a;
+            --text-color: #fafafa;
+            --text-muted: #a1a1aa;
+            --border-color: #27272a;
+            
             --pass-color: #10b981;
             --pass-bg: rgba(16, 185, 129, 0.1);
             --fail-color: #ef4444;
             --fail-bg: rgba(239, 68, 68, 0.1);
             
-            --identical-color: #94a3b8;
-            --identical-bg: rgba(148, 163, 184, 0.1);
+            --identical-color: #71717a;
+            --identical-bg: rgba(113, 113, 122, 0.1);
             --changed-color: #f59e0b;
             --changed-bg: rgba(245, 158, 11, 0.15);
             --added-color: #10b981;
@@ -642,16 +737,21 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             --removed-color: #ef4444;
             --removed-bg: rgba(239, 68, 68, 0.15);
             
-            --primary-color: #6366f1;
-            --primary-hover: #4f46e5;
+            --primary-color: #3f3f46;
+            --primary-hover: #52525b;
+            --accent-color: #ffffff;
+            
+            --code-bg: #09090b;
         }}
         
         [data-theme="light"] {{
-            --bg-color: #f8fafc;
+            --bg-color: #fafafa;
             --card-bg: #ffffff;
-            --text-color: #0f172a;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
+            --card-hover-border: #e4e4e7;
+            --text-color: #09090b;
+            --text-muted: #71717a;
+            --border-color: #e4e4e7;
+            --code-bg: #f4f4f5;
         }}
 
         * {{
@@ -661,16 +761,16 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
         }}
 
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.5;
-            padding: 2rem 1rem;
-            transition: background-color 0.3s, color 0.3s;
+            line-height: 1.6;
+            padding: 3rem 1.5rem;
+            transition: background-color 0.2s, color 0.2s;
         }}
 
         .container {{
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
         }}
 
@@ -678,19 +778,22 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 3rem;
             padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
         }}
 
-        .title-section h1 {{
-            font-size: 2rem;
-            font-weight: 700;
+        .logo-section {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }}
-        
-        .title-section p {{
-            color: var(--text-muted);
-            margin-top: 0.25rem;
+
+        .logo-title {{
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--text-color);
         }}
 
         .theme-toggle {{
@@ -698,44 +801,57 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             border: 1px solid var(--border-color);
             color: var(--text-color);
             padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
         }}
 
         .theme-toggle:hover {{
-            background-color: var(--border-color);
+            background-color: var(--card-bg);
         }}
 
-        /* Dashboard widgets */
+        /* Dashboard grid */
         .dashboard {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(4, 1fr);
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            margin-bottom: 3rem;
+            overflow: hidden;
+        }}
+
+        @media (max-width: 768px) {{
+            .dashboard {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
         }}
 
         .widget {{
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2rem 1.5rem;
+            text-align: left;
+            border-right: 1px solid var(--border-color);
+        }}
+
+        .widget:last-child {{
+            border-right: none;
         }}
 
         .widget h3 {{
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.5rem;
+            font-weight: 600;
         }}
 
         .widget-val {{
             font-size: 2rem;
-            font-weight: 800;
+            font-weight: 700;
+            letter-spacing: -0.025em;
         }}
 
         .widget-val.changed-text {{
@@ -753,41 +869,45 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }}
 
         .filter-tabs {{
             display: flex;
-            gap: 0.5rem;
+            gap: 0.35rem;
+            background-color: var(--card-bg);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }}
 
         .tab-btn {{
             background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             font-weight: 500;
             transition: all 0.2s;
         }}
 
         .tab-btn:hover {{
-            background-color: var(--border-color);
+            color: var(--text-color);
         }}
 
         .tab-btn.active {{
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }}
 
         .search-bar {{
             flex-grow: 1;
-            max-width: 400px;
+            max-width: 350px;
         }}
 
         .search-bar input {{
@@ -795,87 +915,111 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
             transition: all 0.2s;
         }}
 
         .search-bar input:focus {{
             outline: none;
-            border-color: var(--primary-color);
+            border-color: var(--accent-color);
         }}
 
         /* Case list */
         .case-list {{
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.75rem;
         }}
 
         .case-card {{
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 0.5rem;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.2s;
         }}
 
-        .case-card.identical {{
-            border-left: 4px solid var(--identical-color);
-        }}
-        .case-card.changed {{
-            border-left: 4px solid var(--changed-color);
-        }}
-        .case-card.added {{
-            border-left: 4px solid var(--added-color);
-        }}
-        .case-card.removed {{
-            border-left: 4px solid var(--removed-color);
+        .case-card:hover {{
+            border-color: var(--card-hover-border);
         }}
 
         .case-header {{
             display: flex;
             align-items: center;
-            padding: 1rem 1.5rem;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
             cursor: pointer;
             user-select: none;
         }}
 
-        .status-badge {{
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            margin-right: 1rem;
-            text-transform: uppercase;
+        .case-header-left {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }}
 
-        .status-badge.identical {{
-            background-color: var(--identical-bg);
-            color: var(--identical-color);
+        .case-header-right {{
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }}
-        .status-badge.changed {{
-            background-color: var(--changed-bg);
-            color: var(--changed-color);
+
+        .status-indicator {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
         }}
-        .status-badge.added {{
-            background-color: var(--added-bg);
-            color: var(--added-color);
+
+        .status-indicator.identical {{
+            background-color: var(--identical-color);
         }}
-        .status-badge.removed {{
-            background-color: var(--removed-bg);
-            color: var(--removed-color);
+        .status-indicator.changed {{
+            background-color: var(--changed-color);
+        }}
+        .status-indicator.added {{
+            background-color: var(--added-color);
+        }}
+        .status-indicator.removed {{
+            background-color: var(--removed-color);
         }}
 
         .case-title {{
             font-weight: 600;
-            font-size: 1.1rem;
-            flex-grow: 1;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+        }}
+
+        .status-pill {{
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            letter-spacing: 0.05em;
+        }}
+
+        .status-pill.identical {{
+            background-color: var(--identical-bg);
+            color: var(--identical-color);
+        }}
+        .status-pill.changed {{
+            background-color: var(--changed-bg);
+            color: var(--changed-color);
+        }}
+        .status-pill.added {{
+            background-color: var(--added-bg);
+            color: var(--added-color);
+        }}
+        .status-pill.removed {{
+            background-color: var(--removed-bg);
+            color: var(--removed-color);
         }}
 
         .arrow {{
-            font-size: 1.25rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
             transition: transform 0.2s;
         }}
 
@@ -886,7 +1030,7 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
         .case-body {{
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.2s ease-out;
             padding: 0 1.5rem;
         }}
 
@@ -923,11 +1067,11 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
         }}
 
         .diff-pre, .identical-code, .added-code, .removed-code {{
-            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 0.875rem;
+            font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            font-size: 0.85rem;
             padding: 1rem;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 0.375rem;
+            background-color: var(--code-bg);
+            border-radius: 8px;
             overflow-x: auto;
             white-space: pre-wrap;
             border: 1px solid var(--border-color);
@@ -963,11 +1107,10 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
 <body>
     <div class="container">
         <header>
-            <div class="title-section">
-                <h1>PromptWatch Run Comparison</h1>
-                <p>Comparing output snapshots</p>
+            <div class="logo-section">
+                <span class="logo-title">PromptWatch Comparison</span>
             </div>
-            <button class="theme-toggle" onclick="toggleTheme()">Toggle Light Theme</button>
+            <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
         </header>
 
         <section class="dashboard">
@@ -996,7 +1139,7 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
                 <button class="tab-btn" onclick="filterCases('identical', this)">Identical</button>
             </div>
             <div class="search-bar">
-                <input type="text" placeholder="Search case ID..." onkeyup="searchCases(this.value)">
+                <input type="text" placeholder="Search Case ID..." onkeyup="searchCases(this.value)">
             </div>
         </section>
 
@@ -1010,8 +1153,6 @@ def generate_comparison_report(old_answers: dict[str, Answer], new_answers: dict
             const currentTheme = document.documentElement.getAttribute("data-theme");
             const newTheme = currentTheme === "light" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", newTheme);
-            document.querySelector(".theme-toggle").textContent = 
-                newTheme === "light" ? "Toggle Dark Theme" : "Toggle Light Theme";
         }}
 
         function toggleAccordion(header) {{

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Protocol, Any
 
 from .models import Answer, TestCase
+from .config import load_config
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,7 @@ def answer_from_response(case: TestCase, response: AdapterResponse) -> Answer:
 
 class OpenAIAdapter:
     def __init__(self, api_key: str | None = None, model: str = "gpt-4o-mini", api_base: str = "https://api.openai.com/v1"):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY") or load_config().get("openai_api_key")
         self.model = model
         self.api_base = api_base.rstrip("/")
 
@@ -46,7 +47,8 @@ class OpenAIAdapter:
         url = f"{self.api_base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         data = {
             "model": self.model,
@@ -76,7 +78,7 @@ class OpenAIAdapter:
 
 class OpenRouterAdapter:
     def __init__(self, api_key: str | None = None, model: str = "google/gemini-2.5-flash", api_base: str = "https://openrouter.ai/api/v1"):
-        self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY") or load_config().get("openrouter_api_key")
         self.model = model
         self.api_base = api_base.rstrip("/")
 
@@ -89,7 +91,8 @@ class OpenRouterAdapter:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/XBarni999/promptwatch",
-            "X-Title": "PromptWatch"
+            "X-Title": "PromptWatch",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         data = {
             "model": self.model,
@@ -119,7 +122,7 @@ class OpenRouterAdapter:
 
 class GroqAdapter:
     def __init__(self, api_key: str | None = None, model: str = "llama-3.3-70b-versatile", api_base: str = "https://api.groq.com/openai/v1"):
-        self.api_key = api_key or os.environ.get("GROQ_API_KEY")
+        self.api_key = api_key or os.environ.get("GROQ_API_KEY") or load_config().get("groq_api_key")
         self.model = model
         self.api_base = api_base.rstrip("/")
 
@@ -130,7 +133,8 @@ class GroqAdapter:
         url = f"{self.api_base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         data = {
             "model": self.model,
@@ -165,7 +169,10 @@ class HttpAdapter:
         self.headers = headers or {}
 
     def generate(self, case: TestCase) -> AdapterResponse:
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
         headers.update(self.headers)
         
         data = {"input": case.input}
